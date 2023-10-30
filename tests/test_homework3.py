@@ -34,3 +34,12 @@ def test_rational_addition(homework3_contract):
 
     # Now the contract
     assert homework3_contract.rationalAdd(fq_to_point(A), fq_to_point(B), num, den)
+
+
+def test_matrix_multiply(homework3_contract):
+
+    n = 2
+    matrix = [2, 3, 4, 5]
+    s = [(1, 2), (1, 2)]
+    o = [5, 9]
+    homework3_contract.matmul(matrix, n, s, o)

@@ -74,10 +74,11 @@ contract Homework3 {
 
         // Multiplication of matrix by EC.x
         uint256[] memory Ms = new uint256[](n);
+
         for (uint256 i = 0; i < n; i++) {
             Ms[i] = 0;
             for (uint256 j = 0; j < n; j++) {
-                Ms[i] += matrix[i] * s[j].x;
+                Ms[i] += matrix[i * n + j] * s[j].x;
             }
         }
 
@@ -85,13 +86,11 @@ contract Homework3 {
         require(Ms.length == n, "Mismatch in lengths");
 
         // return true if Ms == o elementwise. You need to do n equality checks. If you're lazy, you can hardcode n to 3, but it is suggested that you do this with a for loop
-        bool equal = false;
-
         for (uint256 i = 0; i < n; i++) {
-            equal = (Ms[i] == o[i]);
-            if (!equal) break;
+            verified = (Ms[i] == o[i]);
+            if (!verified) return verified;
         }
 
-        return equal;
+        return verified;
     }
 }
