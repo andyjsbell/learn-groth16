@@ -67,8 +67,8 @@ contract Homework3 {
         uint256[] calldata o // n elements
     ) public pure returns (bool verified) {
         // revert if dimensions don't make sense or the matrices are empty
-        require(matrix.length == 0 || n == 0, "Empty");
-        require(matrix.length == n, "Matrix and element mismatch");
+        require(matrix.length > 0 || n != 0, "Empty");
+        require(matrix.length == n * n, "Matrix and element mismatch");
         require(s.length == n, "s and element mismatch");
         require(o.length == n, "o and element mismatch");
 
