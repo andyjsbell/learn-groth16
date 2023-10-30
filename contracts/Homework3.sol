@@ -49,10 +49,6 @@ contract Homework3 {
 
     uint256 constant PRIME_Q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    function s(ECPoint calldata A) public pure returns(bool) {
-        return true;
-    }
-
     function rationalAdd(ECPoint calldata A, ECPoint calldata B, uint256 num, uint256 den) public view returns (bool verified) {
         // return true if the prover knows two numbers that add up to num/den
         // First things first, we have homomorphism of rational number to a finite field
