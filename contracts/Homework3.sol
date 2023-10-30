@@ -47,7 +47,7 @@ contract Homework3 {
         return decode_result(result);
     }
 
-    uint256 constant PRIME_Q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    uint256 constant public PRIME_Q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
     function rationalAdd(ECPoint calldata A, ECPoint calldata B, uint256 num, uint256 den) public view returns (bool verified) {
         // return true if the prover knows two numbers that add up to num/den
@@ -57,9 +57,7 @@ contract Homework3 {
         uint256 a = num * invMod(den, curve_order);
         // under EC points we would be able to verify this by:
         // multiply(G1, a) = add(A, B)
-        ECPoint memory G1;
-        G1.x = 1;
-        G1.y = 2;
+        ECPoint memory G1 = ECPoint(1, 2);
         verified = eq(multiply(G1, a), add(A, B));
     }
 

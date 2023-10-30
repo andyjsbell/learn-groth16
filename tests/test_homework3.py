@@ -1,11 +1,8 @@
 from py_ecc.bn128 import G1, curve_order, multiply, add, eq
 
 
-def test_smoke(acct1, acct2, acct3, homework3_contract):
-    assert acct1.balance > 0
-    assert acct2.balance > 0
-    assert acct3.balance > 0
-    assert homework3_contract.balance == 0
+def test_smoke(homework3_contract):
+    assert homework3_contract.PRIME_Q() == curve_order
 
 
 def test_modulus_inverse(homework3_contract):
