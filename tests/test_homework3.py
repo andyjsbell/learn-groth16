@@ -37,9 +37,17 @@ def test_rational_addition(homework3_contract):
 
 
 def test_matrix_multiply(homework3_contract):
-
+    # 2x + 8y = 7944
+    # 5x + 3y = 4764
+    # correct answers are x=420 and y=888
     n = 2
-    matrix = [2, 3, 4, 5]
-    s = [(1, 2), (1, 2)]
-    o = [5, 9]
-    homework3_contract.matmul(matrix, n, s, o)
+    matrix = [2, 8, 5, 3]
+    s = [fq_to_point(multiply(G1, 420)), fq_to_point(multiply(G1, 888))]
+    o = [7944, 4764]
+    # verify I know the answer
+    verified = homework3_contract.matmul(matrix, n, s, o)
+    assert verified
+    # send bogus answer
+    s = [fq_to_point(multiply(G1, 421)), fq_to_point(multiply(G1, 888))]
+    verified = homework3_contract.matmul(matrix, n, s, o)
+    assert not verified
