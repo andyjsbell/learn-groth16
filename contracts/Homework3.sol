@@ -35,7 +35,7 @@ contract Homework3 {
         return A.x == B.x && A.y == B.y;
     }
 
-    function add(ECPoint calldata A, ECPoint calldata B) public view returns(ECPoint memory) {
+    function add(ECPoint memory A, ECPoint memory B) public view returns(ECPoint memory) {
         (bool ok, bytes memory result) = address(6).staticcall(abi.encode(A.x, A.y, B.x, B.y));
         require(ok, "failed that addition call");
         return decode_result(result);
@@ -65,29 +65,28 @@ contract Homework3 {
         uint256 n, // n x n for the matrix
         ECPoint[] calldata s, // n elements
         uint256[] calldata o // n elements
-    ) public pure returns (bool verified) {
+    ) public view returns (bool verified) {
         // revert if dimensions don't make sense or the matrices are empty
         require(matrix.length > 0 || n != 0, "Empty");
         require(matrix.length == n * n, "Matrix and element mismatch");
         require(s.length == n, "s and element mismatch");
         require(o.length == n, "o and element mismatch");
 
-        // Multiplication of matrix by EC.x
-        uint256[] memory Ms = new uint256[](n);
+        ECPoint memory G1 = ECPoint(1, 2);
+        ECPoint[] memory points = new ECPoint[](n);
 
-        for (uint256 i = 0; i < n; i++) {
-            Ms[i] = 0;
-            for (uint256 j = 0; j < n; j++) {
-                Ms[i] += matrix[i * n + j] * s[j].x;
+        for (uint256 row = 0; row < n; row++) {
+            ECPoint memory p = multiply(G1, PRIME_Q);
+            for (uint256 col = 0; col < n; col++) {
+                uint256 number = matrix[row * n + col];
+                p = add(p, multiply(s[col], number));
             }
+            points[row] = p;
         }
 
-        // This can be removed, for debugging
-        require(Ms.length == n, "Mismatch in lengths");
-
-        // return true if Ms == o elementwise. You need to do n equality checks. If you're lazy, you can hardcode n to 3, but it is suggested that you do this with a for loop
+        // Verify elements in `o`
         for (uint256 i = 0; i < n; i++) {
-            verified = (Ms[i] == o[i]);
+            verified = eq(points[i], multiply(G1, o[i]));
             if (!verified) return verified;
         }
 
