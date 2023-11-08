@@ -9,3 +9,7 @@ def acct1(accounts):
 @pytest.fixture
 def homework3_contract(acct1, project):
     return acct1.deploy(project.Homework3)
+
+@pytest.fixture
+def homework4_contract(acct1, project):
+    return acct1.deploy(project.Homework4)
