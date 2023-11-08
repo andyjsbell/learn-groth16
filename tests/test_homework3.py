@@ -1,8 +1,7 @@
-from py_ecc.bn128 import G1, curve_order, multiply, add, eq
-
+from py_ecc.bn128 import G1, G2, curve_order, multiply, add, eq, neg, pairing, G12
 
 def test_smoke(homework3_contract):
-    assert homework3_contract.PRIME_Q() == curve_order
+    assert homework3_contract.CURVE_ORDER() == curve_order
 
 
 def test_modulus_inverse(homework3_contract):
@@ -12,8 +11,10 @@ def test_modulus_inverse(homework3_contract):
 
 
 def fq_to_point(fq):
-    return repr(fq[0]), repr(fq[1])
+    return [repr(fq[0]), repr(fq[1])]
 
+def fq2_to_point(fq):
+    return [[repr(fq[0].coeffs[0]), repr(fq[0].coeffs[1])], [repr(fq[1].coeffs[0]), repr(fq[1].coeffs[1])]]
 
 def test_rational_addition(homework3_contract):
     # 7/12 + 2/12 = 3/4
