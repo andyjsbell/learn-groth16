@@ -1,4 +1,4 @@
-# zk-homework-3
+# zk-homework
 
 ### Getting started
 ```bash
