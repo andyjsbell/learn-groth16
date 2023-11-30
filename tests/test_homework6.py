@@ -64,5 +64,5 @@ def test_week_6(homework6_contract):
     # verify by pairing RS2 with LS1 and G2 with OS1 
     assert eq(pairing(RS2[0][0], LS1[0][0]), pairing(G2, OS1[0][0]))
     # verify a couple of points ;)
-    homework6_contract.verify_witness(fq_to_point(LS1[0][0]), fq2_to_point(RS2[0][0]), fq_to_point(OS1[0][0]))
-    homework6_contract.verify_witness(fq_to_point(LS1[1][0]), fq2_to_point(RS2[1][0]), fq_to_point(OS1[1][0]))
+    assert homework6_contract.verify_witness(fq_to_point(LS1[0][0]), fq2_to_point(RS2[0][0]), fq_to_point(OS1[0][0]))
+    assert homework6_contract.verify_witness(fq_to_point(LS1[1][0]), fq2_to_point(RS2[1][0]), fq_to_point(OS1[1][0]))

@@ -3,6 +3,8 @@ pragma solidity ^0.8.13;
 
 contract Homework6 {
     
+    uint256 constant public FIELD_MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
     struct G1Point {
         uint256 X;
         uint256 Y;
@@ -11,6 +13,15 @@ contract Homework6 {
     struct G2Point {
         uint256[2] X;
         uint256[2] Y;
+    }
+
+    function negate(G1Point memory p) internal pure returns (G1Point memory) {
+        // The prime q in the base field F_q for G1
+        if (p.X == 0 && p.Y == 0) {
+            return G1Point(0, 0);
+        } else {
+            return G1Point(p.X, FIELD_MODULUS - (p.Y % FIELD_MODULUS));
+        }
     }
 
     // L[S]1 hadamard product R[S]2 = O[S]12
@@ -27,9 +38,11 @@ contract Homework6 {
             ]
         );
 
+        G1Point memory neg_L = negate(L);
+
         uint256[12] memory input = [
-            L.X,
-            L.Y,
+            neg_L.X,
+            neg_L.Y,
             R.X[1],
             R.X[0],
             R.Y[1],
