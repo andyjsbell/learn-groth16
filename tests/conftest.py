@@ -17,3 +17,7 @@ def homework4_contract(acct1, project):
 @pytest.fixture
 def homework6_contract(acct1, project):
     return acct1.deploy(project.Homework6)
+
+@pytest.fixture
+def homework7_contract(acct1, project):
+    return acct1.deploy(project.Homework7)
