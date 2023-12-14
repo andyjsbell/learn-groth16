@@ -27,52 +27,42 @@ contract Homework8 {
     function verify_witness(
         G1Point memory A1,
         G2Point memory B2,
-        G1Point memory C1,
         G1Point memory alpha1,
-        G2Point memory beta2
+        G2Point memory beta2,
+        G1Point memory C_public,
+        G2Point memory gamma2,
+        G1Point memory C1,
+        G2Point memory delta2
     ) public view returns (bool) {
         // pairing(B2, A1) == pairing(beta2, alpha1) + pairing(G2, C1)
 
-        G2Point memory G2 = G2Point(
-            [
-                uint256(
-                    10857046999023057135944570762232829481370756359578518086990519993285655852781
-                ),
-                uint256(
-                    11559732032986387107991004021392285783925812861821192530917403151452391805634
-                )
-            ],
-            [
-                uint256(
-                    8495653923123431417604973247489272438418190587263600148770280649306958101930
-                ),
-                uint256(
-                    4082367875863433681332203403145435568316851327593401208105741076214120093531
-                )
-            ]
-        );
-
         G1Point memory neg_A1 = negate(A1);
 
-        uint256[18] memory input = [
+        uint256[24] memory input = [
             neg_A1.X,
             neg_A1.Y,
             B2.X[1],
             B2.X[0],
             B2.Y[1],
             B2.Y[0],
-            C1.X,
-            C1.Y,
-            G2.X[1],
-            G2.X[0],
-            G2.Y[1],
-            G2.Y[0],
             alpha1.X,
             alpha1.Y,
             beta2.X[1],
             beta2.X[0],
             beta2.Y[1],
-            beta2.Y[0]
+            beta2.Y[0],
+            C_public.X,
+            C_public.Y,
+            gamma2.X[1],
+            gamma2.X[0],
+            gamma2.Y[1],
+            gamma2.Y[0],
+            C1.X,
+            C1.Y,
+            delta2.X[1],
+            delta2.X[0],
+            delta2.Y[1],
+            delta2.Y[0]
         ];
 
         assembly {
@@ -80,7 +70,7 @@ contract Homework8 {
                 gas(),
                 8,
                 input,
-                mul(18, 0x20),
+                mul(24, 0x20),
                 input,
                 0x20
             )

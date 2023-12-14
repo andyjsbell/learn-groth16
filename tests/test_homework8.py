@@ -93,6 +93,106 @@ def fq_to_point(fq):
 def fq2_to_point(fq):
     return [[repr(fq[0].coeffs[0]), repr(fq[0].coeffs[1])], [repr(fq[1].coeffs[0]), repr(fq[1].coeffs[1])]]
 
+def easy_as_abc_dg_rs():
+    GF = galois.GF(curve_order)
+    # Randomise tau, alpha, beta, gamma, and delta
+    tau = GF(random.randint(1, curve_order - 1))
+    alpha = GF(random.randint(1, curve_order - 1))
+    beta = GF(random.randint(1, curve_order - 1))
+    gamma = GF(random.randint(1, curve_order - 1))
+    delta = GF(random.randint(1, curve_order - 1))
+
+    r = GF(random.randint(1, curve_order - 1))
+    s = GF(random.randint(1, curve_order - 1))
+    
+    # Our inputs
+    x = random.randint(1,1000)
+    y = random.randint(1,1000)
+    
+    # Generate QAP
+    Ua, Va, Wa, h, t = r1cs_to_qap(curve_order, x, y, GF)
+    
+    # Calculate powers of tau for A and B and the random shift for A and B
+    powers_of_tau_for_A = [multiply(G1,int(tau**i)) for i in range(Ua.degree + 1)]
+    powers_of_tau_for_B = [multiply(G2,int(tau**i)) for i in range(Ua.degree + 1)]
+    alpha1 = multiply(G1, int(alpha))
+    beta2 = multiply(G2, int(beta))
+    delta_inverse = pow(int(delta), -1, curve_order)
+    gamma_inverse = pow(int(gamma), -1, curve_order)
+    
+    powers_of_tau_for_h_t = [multiply(G1, int(tau**i * t(tau) * delta_inverse)) for i in range(t.degree)]
+    
+   # Calculate A1, B1 and B2
+    A1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Ua.coeffs[::-1])), None)
+    A1 = add(
+            add(
+                alpha1, 
+                A1
+            ), 
+            multiply(
+                G1, 
+                int(r) * int(delta)
+            )
+        )
+    B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])), None)
+    B2 = add(
+            add(
+                beta2, 
+                B2
+            ), 
+            multiply(
+                G2, 
+                int(s) * int(delta)
+            )
+        )
+    
+    B1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Va.coeffs[::-1])), None)
+    B1 = add(
+            add(
+                multiply(G1, int(beta)), 
+                B1
+            ), 
+            multiply(
+                G1, 
+                int(s) * int(delta)
+            )
+        )
+
+    def split_public_private(p):
+        coef = [int(c) for c in p.coefficients()]
+        p1 = coef[-2:]
+        p2 = coef[:-2] + [0] * 2
+
+        return galois.Poly(p1, field=GF), galois.Poly(p2, field=GF)
+    
+    Ua1, Ua2 = split_public_private(Ua)
+    Va1, Va2 = split_public_private(Va)
+    Wa1, Wa2 = split_public_private(Wa)
+    
+    #i=0 to 1(l=1)
+    # powers of tau for public inputs, the first 2, this will become C1
+    C_public = reduce(add, \
+                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * gamma_inverse) \
+                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua1.coeffs[::-1], Va1.coeffs[::-1], Wa1.coeffs[::-1])), None)
+    
+    C_private = reduce(add, \
+                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * delta_inverse) \
+                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua2.coeffs[::-1], Va2.coeffs[::-1], Wa2.coeffs[::-1])), None)
+    
+    HT1 = reduce(add, \
+                 (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])), None)
+    
+    sA1 = multiply(A1, int(s))
+    rB1 = multiply(B1, int(r))
+    rs_delta_1 = multiply(multiply(G1, int(delta)), int(r)*int(s))
+
+    C1 = add(C_private, HT1)
+    C1 = add(C1, sA1)
+    C1 = add(C1, rB1)
+    C1 = add(C1, neg(rs_delta_1))
+
+    return A1, B2, C1, alpha1, beta2, multiply(G2, int(gamma)), multiply(G2, int(delta)), C_public
+
 def easy_as_abc_dg():
     GF = galois.GF(curve_order)
     # Randomise tau, alpha and beta
@@ -189,28 +289,68 @@ def easy_as_abc():
 
     return A1, B2, C1, alpha1, beta2
 
-def test_week_8_abc(homework8_contract):
+# def test_week_8_abc(homework8_contract):
     
-    A1, B2, C1, alpha1, beta2 = easy_as_abc()
+#     A1, B2, C1, alpha1, beta2 = easy_as_abc()
 
-    assert final_exponentiate(pairing(B2, A1)) == final_exponentiate(pairing(beta2, alpha1) * pairing(G2, C1)), "sorry nope"
+#     assert final_exponentiate(pairing(B2, A1)) == final_exponentiate(pairing(beta2, alpha1) * pairing(G2, C1)), "sorry nope"
 
-    # Onchain
-    assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), \
-                                            fq_to_point(C1), fq_to_point(alpha1),
-                                            fq2_to_point(beta2))
+#     # Onchain
+#     assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), \
+#                                             fq_to_point(C1), fq_to_point(alpha1),
+#                                             fq2_to_point(beta2))
 
-def test_week_8_abc_dg(homework8_contract):
+# def test_week_8_abc_dg(homework8_contract):
     
-    A1, B2, C1, alpha1, beta2, gamma_2, delta_2, C_public = easy_as_abc_dg()
+#     A1, B2, C1, alpha1, beta2, gamma_2, delta_2, C_public = easy_as_abc_dg()
+
+#     assert final_exponentiate(pairing(B2, A1)) == \
+#         final_exponentiate(
+#             pairing(beta2, alpha1) *
+#             pairing(gamma_2, C_public) *
+#             pairing(delta_2, C1)), "sorry nope"
+    
+def test_week_8_abc_dg_rs(homework8_contract):
+    
+    A1, B2, C1, alpha1, beta2, gamma_2, delta_2, C_public = easy_as_abc_dg_rs()
 
     assert final_exponentiate(pairing(B2, A1)) == \
         final_exponentiate(
             pairing(beta2, alpha1) *
             pairing(gamma_2, C_public) *
             pairing(delta_2, C1)), "sorry nope"
-    
-if __name__ == "__main__":
-    A1, B2, C1, alpha1, beta2 = easy_as_abc()
 
-    assert final_exponentiate(pairing(B2, A1)) == final_exponentiate(pairing(beta2, alpha1) * pairing(G2, C1)), "sorry nope"
+    assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), 
+                                            fq_to_point(alpha1), fq2_to_point(beta2),
+                                            fq_to_point(C_public), fq2_to_point(gamma_2),
+                                            fq_to_point(C1), fq2_to_point(delta_2))
+
+
+
+if __name__ == "__main__":
+    A1, B2, C1, alpha1, beta2, gamma_2, delta_2, C_public = easy_as_abc_dg_rs()
+    assert final_exponentiate(pairing(B2, A1)) == \
+        final_exponentiate(
+            pairing(beta2, alpha1) *
+            pairing(gamma_2, C_public) *
+            pairing(delta_2, C1)), "sorry nope"
+    
+    # A1, B2, C1, alpha1, beta2 = easy_as_abc()
+
+    # assert final_exponentiate(pairing(B2, A1)) == final_exponentiate(pairing(beta2, alpha1) * pairing(G2, C1)), "sorry nope"
+
+
+    
+
+
+    # 10G1 * 10^-1 ?= 1
+    # print(10 * pow(10, -1))
+    # print(G1)
+    # print(multiply(G1, 10 * pow(10, -1)))
+    # [5]12 = [1]12 + 2[12] + 2[12]
+    # lhs = pairing(multiply(G2, 5), G1)
+    # rhs_1 = pairing(G2, G1)
+    # rhs_2 = pairing(multiply(G2, 2), G1)
+    # rhs_3 = pairing(multiply(G2, 2), G1)
+    # assert final_exponentiate(lhs) == final_exponentiate(rhs_1 * rhs_2 * rhs_3)
+
