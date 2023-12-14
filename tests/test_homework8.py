@@ -181,7 +181,7 @@ def easy_as_abc():
     B2 = add(beta2, B2)
 
     C_prime_1 = reduce(add, \
-                  (multiply(point, int(int(beta)*int(ui) + int(alpha)*int(vi) + int(wi))) \
+                  (multiply(point, int(int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)))
                     for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua.coeffs[::-1], Va.coeffs[::-1], Wa.coeffs[::-1])), None)
     
     HT1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])), None)
@@ -197,7 +197,7 @@ def test_week_8_abc(homework8_contract):
 
     # Onchain
     assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), \
-                                            fq_to_point(C1), fq_to_point(alpha1), \
+                                            fq_to_point(C1), fq_to_point(alpha1),
                                             fq2_to_point(beta2))
 
 def test_week_8_abc_dg(homework8_contract):
@@ -209,6 +209,7 @@ def test_week_8_abc_dg(homework8_contract):
             pairing(beta2, alpha1) *
             pairing(gamma_2, C_public) *
             pairing(delta_2, C1)), "sorry nope"
+    
 if __name__ == "__main__":
     A1, B2, C1, alpha1, beta2 = easy_as_abc()
 
