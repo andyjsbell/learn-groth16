@@ -119,9 +119,11 @@ def easy_as_abc():
     A1 = add(alpha1, A1)
     B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])), None)
     B2 = add(beta2, B2)
+
     C_prime_1 = reduce(add, \
-                  (add(add(multiply(point, int(beta)*int(ui)), multiply(point, int(alpha)*int(vi))), multiply(point, int(wi))) \
+                  (multiply(point, int(int(beta)*int(ui) + int(alpha)*int(vi) + int(wi))) \
                     for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua.coeffs[::-1], Va.coeffs[::-1], Wa.coeffs[::-1])), None)
+    
     HT1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])), None)
     C1 = add(C_prime_1, HT1)
 
