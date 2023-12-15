@@ -85,7 +85,7 @@ def r1cs_to_qap(p, x, y, GF):
 
     assert Ua * Va == Wa + h * t, "division has a remainder"
 
-    return (Ua, Va, Wa, h, t)
+    return (Ua, Va, Wa, h, t, witness)
 
 def fq_to_point(fq):
     return [repr(fq[0]), repr(fq[1])]
@@ -93,74 +93,23 @@ def fq_to_point(fq):
 def fq2_to_point(fq):
     return [[repr(fq[0].coeffs[0]), repr(fq[0].coeffs[1])], [repr(fq[1].coeffs[0]), repr(fq[1].coeffs[1])]]
 
-def trusted_setup(t, tau, Ua, alpha, beta, delta):
+def trusted_setup(GF, t, Ua, Va, Wa):
+    tau = GF(3)
+    alpha = GF(6)
+    beta = GF(9)
+    gamma = GF(12)
+    delta = GF(15)
+
     # Calculate powers of tau for A and B and the random shift for A and B
     powers_of_tau_for_A = [multiply(G1,int(tau**i)) for i in range(Ua.degree + 1)]
     powers_of_tau_for_B = [multiply(G2,int(tau**i)) for i in range(Ua.degree + 1)]
     powers_of_tau_for_h_t = [multiply(G1, int(tau**i * t(tau) * pow(int(delta), -1, curve_order))) for i in range(t.degree)]
     alpha1 = multiply(G1, int(alpha))
+    beta1 = multiply(G1, int(beta))
     beta2 = multiply(G2, int(beta))
-    
-    return powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta2
-
-def easy_as_abc_dg_rs():
-    GF = galois.GF(curve_order)
-    # Randomise tau, alpha, beta, gamma, and delta
-    tau = GF(random.randint(1, curve_order - 1))
-    alpha = GF(random.randint(1, curve_order - 1))
-    beta = GF(random.randint(1, curve_order - 1))
-    gamma = GF(random.randint(1, curve_order - 1))
-    delta = GF(random.randint(1, curve_order - 1))
-    
-    # Our inputs
-    x = random.randint(1,1000)
-    y = random.randint(1,1000)
-    
-    # Generate QAP
-    Ua, Va, Wa, h, t = r1cs_to_qap(curve_order, x, y, GF)
-    
-    powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta2 = \
-        trusted_setup(t, tau, Ua, alpha, beta, delta)
-    
-    # Protect ZK
-    r = GF(random.randint(1, curve_order - 1))
-    s = GF(random.randint(1, curve_order - 1))
-
-    # Calculate A1, B1 and B2
-    A1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Ua.coeffs[::-1])), None)
-    A1 = add(
-            add(
-                alpha1, 
-                A1
-            ), 
-            multiply(
-                G1, 
-                int(r) * int(delta)
-            )
-        )
-    B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])), None)
-    B2 = add(
-            add(
-                beta2, 
-                B2
-            ), 
-            multiply(
-                G2, 
-                int(s) * int(delta)
-            )
-        )
-    
-    B1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Va.coeffs[::-1])), None)
-    B1 = add(
-            add(
-                multiply(G1, int(beta)), 
-                B1
-            ), 
-            multiply(
-                G1, 
-                int(s) * int(delta)
-            )
-        )
+    delta1 = multiply(G1, int(delta))
+    delta2 = multiply(G2, int(delta))
+    gamma2 = multiply(G2, int(gamma))
 
     def split_public_private(p):
         coef = [int(c) for c in p.coefficients()]
@@ -173,27 +122,81 @@ def easy_as_abc_dg_rs():
     Va1, Va2 = split_public_private(Va)
     Wa1, Wa2 = split_public_private(Wa)
     
-    C_public = reduce(add,
-                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(gamma), -1, curve_order))
-                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua1.coeffs[::-1], Va1.coeffs[::-1], Wa1.coeffs[::-1])), None)
+    C_public = [multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(gamma), -1, curve_order))
+                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua1.coeffs[::-1], Va1.coeffs[::-1], Wa1.coeffs[::-1])]
     
-    C_private = reduce(add,
-                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(delta), -1, curve_order))
-                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua2.coeffs[::-1], Va2.coeffs[::-1], Wa2.coeffs[::-1])), None)
+    C_private = [multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(delta), -1, curve_order))
+                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua2.coeffs[::-1], Va2.coeffs[::-1], Wa2.coeffs[::-1])]
     
-    HT1 = reduce(add,
-                 (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])), None)
+    return powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta1, beta2, delta1, delta2, C_private, C_public, gamma2
+
+def easy_as_abc_dg_rs():
+    GF = galois.GF(curve_order)
+    
+    # Our inputs
+    x = random.randint(1,1000)
+    y = random.randint(1,1000)
+    
+    # Generate QAP
+    Ua, Va, Wa, h, t, witness = r1cs_to_qap(curve_order, x, y, GF)
+    
+    powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta1, beta2, delta1, delta2, C_private, C_public, gamma2 = \
+        trusted_setup(GF, t, Ua, Va, Wa)
+    
+    # Protect ZK
+    r = GF(random.randint(1, curve_order - 1))
+    s = GF(random.randint(1, curve_order - 1))
+
+    # Calculate A1, B1 and B2
+    A1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Ua.coeffs[::-1])))
+    A1 = add(
+            add(
+                alpha1, 
+                A1
+            ), 
+            multiply(
+                delta1, 
+                int(r)
+            )
+        )
+    B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])))
+    B2 = add(
+            add(
+                beta2, 
+                B2
+            ), 
+            multiply(
+                delta2, 
+                int(s)
+            )
+        )
+    
+    B1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Va.coeffs[::-1])))
+    B1 = add(
+            add(
+                beta1, 
+                B1
+            ), 
+            multiply(
+                delta1, 
+                int(s)
+            )
+        )
+     
+    HT1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])))
     
     sA1 = multiply(A1, int(s))
     rB1 = multiply(B1, int(r))
-    rs_delta_1 = multiply(multiply(G1, int(delta)), int(r)*int(s))
+    rs_delta_1 = multiply(delta1, int(r*s))
+    C_public = reduce(add, C_public)
+    C_private = reduce(add, C_private)
 
     C1 = add(C_private, HT1)
     C1 = add(C1, sA1)
     C1 = add(C1, rB1)
     C1 = add(C1, neg(rs_delta_1))
 
-    return A1, B2, C1, alpha1, beta2, multiply(G2, int(gamma)), multiply(G2, int(delta)), C_public
+    return A1, B2, C1, alpha1, beta2, gamma2, delta2, C_public
     
 def test_week_8_abc_dg_rs(homework8_contract):
     
@@ -203,7 +206,7 @@ def test_week_8_abc_dg_rs(homework8_contract):
         final_exponentiate(
             pairing(beta2, alpha1) *
             pairing(gamma_2, C_public) *
-            pairing(delta_2, C1)), "sorry nope"
+            pairing(delta_2, C1)), "sorry, nope"
 
     assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), 
                                             fq_to_point(alpha1), fq2_to_point(beta2),
