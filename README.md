@@ -14,6 +14,11 @@ pip install galois
 ```
 
 ### Tests
+Test all
 ```bash
 ape test
+```
+Test Groth16
+```bash
+ape test tests/test_homework8.py
 ```
