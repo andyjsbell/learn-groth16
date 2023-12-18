@@ -103,17 +103,16 @@ def fq2_to_point(fq):
     return [[repr(fq[0].coeffs[0]), repr(fq[0].coeffs[1])], [repr(fq[1].coeffs[0]), repr(fq[1].coeffs[1])]]
 
 def test_week_7(homework7_contract):
-    pass
-    # GF = galois.GF(curve_order)
-    # x = random.randint(1,1000)
-    # y = random.randint(1,1000)
-    # Ua, Va, Wa, h, t = r1cs_to_qap(curve_order, x, y, GF)
-    # tau = GF(random.randint(1, curve_order - 1))
-    # powers_of_tau_1, powers_of_tau_2, t_tau_1 = trusted_setup(Ua.degree, t, tau)
-    # A1 = inner_product(powers_of_tau_1, Ua.coeffs[::-1], None)
-    # B2 = inner_product(powers_of_tau_2, Va.coeffs[::-1], None)
-    # C_prime_1 = inner_product(powers_of_tau_1, Wa.coeffs[::-1], None)
-    # HT1 = inner_product(t_tau_1, h.coeffs[::-1], None)
-    # C1 = add(C_prime_1, HT1)
+    GF = galois.GF(curve_order)
+    x = random.randint(1,1000)
+    y = random.randint(1,1000)
+    Ua, Va, Wa, h, t = r1cs_to_qap(curve_order, x, y, GF)
+    tau = GF(random.randint(1, curve_order - 1))
+    powers_of_tau_1, powers_of_tau_2, t_tau_1 = trusted_setup(Ua.degree, t, tau)
+    A1 = inner_product(powers_of_tau_1, Ua.coeffs[::-1], None)
+    B2 = inner_product(powers_of_tau_2, Va.coeffs[::-1], None)
+    C_prime_1 = inner_product(powers_of_tau_1, Wa.coeffs[::-1], None)
+    HT1 = inner_product(t_tau_1, h.coeffs[::-1], None)
+    C1 = add(C_prime_1, HT1)
 
-    # assert homework7_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), fq_to_point(C1))
+    assert homework7_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), fq_to_point(C1))
