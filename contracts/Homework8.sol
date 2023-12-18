@@ -24,19 +24,42 @@ contract Homework8 {
         }
     }
 
+    function decode_result(bytes memory result) public pure returns(G1Point memory) {
+        (uint256 x, uint256 y) = abi.decode(result, (uint256, uint256));
+
+        G1Point memory C;
+        C.X = x;
+        C.Y = y;
+        return C;
+    }
+
+    function add(G1Point memory A, G1Point memory B) public view returns(G1Point memory) {
+        (bool ok, bytes memory result) = address(6).staticcall(abi.encode(A.X, A.Y, B.X, B.Y));
+        require(ok, "failed that addition call");
+        return decode_result(result);
+    }
+
+    function multiply(G1Point memory A, uint256 scalar) public view returns(G1Point memory) {
+        (bool ok, bytes memory result) = address(7).staticcall(abi.encode(A.X, A.Y, scalar));
+        require(ok, "failed that multiplication call");
+        return decode_result(result);
+    }
+    
     function verify_witness(
         G1Point memory A1,
         G2Point memory B2,
         G1Point memory alpha1,
         G2Point memory beta2,
-        G1Point memory C_public,
+        G1Point[2] memory C_public,
         G2Point memory gamma2,
         G1Point memory C1,
-        G2Point memory delta2
+        G2Point memory delta2,
+        uint256[2] memory public_inputs
     ) public view returns (bool) {
-        // pairing(B2, A1) == pairing(beta2, alpha1) + pairing(G2, C1)
+        // pairing(B2, A1) == pairing(beta2, alpha1) + pairing(gamma2, X1) + pairing(delta2, C1)
 
         G1Point memory neg_A1 = negate(A1);
+        G1Point memory X1 = add(multiply(C_public[0], public_inputs[0]), multiply(C_public[1], public_inputs[1]));
 
         uint256[24] memory input = [
             neg_A1.X,
@@ -51,8 +74,8 @@ contract Homework8 {
             beta2.X[0],
             beta2.Y[1],
             beta2.Y[0],
-            C_public.X,
-            C_public.Y,
+            X1.X,
+            X1.Y,
             gamma2.X[1],
             gamma2.X[0],
             gamma2.Y[1],
