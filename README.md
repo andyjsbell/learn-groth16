@@ -1,4 +1,9 @@
-# zk-homework
+# Groth16
+
+### Learning ZK by implementing Groth16  
+
+Verifier: [contracts/Homework8.sol](contracts/Homework8.sol)  
+Prover: [tests/test_homework8.py](tests/test_homework8.py)
 
 ### Getting started
 ```bash
