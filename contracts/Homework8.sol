@@ -48,13 +48,16 @@ contract Homework8 {
     function verify_witness(
         G1Point memory A1,
         G2Point memory B2,
+        G1Point memory C1,
+        uint256[2] memory public_inputs,
+        // The following wouldn't be shared on verification but rather deployed with the 
+        // contract as constants after the trusted setup has been completed
         G1Point memory alpha1,
         G2Point memory beta2,
         G1Point[2] memory C_public,
         G2Point memory gamma2,
-        G1Point memory C1,
-        G2Point memory delta2,
-        uint256[2] memory public_inputs
+        G2Point memory delta2
+        
     ) public view returns (bool) {
         // pairing(B2, A1) == pairing(beta2, alpha1) + pairing(gamma2, X1) + pairing(delta2, C1)
 

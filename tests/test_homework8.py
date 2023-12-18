@@ -192,13 +192,16 @@ def test_week_8_abc_dg_rs(homework8_contract):
     
     assert homework8_contract.verify_witness(   fq_to_point(A1), 
                                                 fq2_to_point(B2), 
+                                                fq_to_point(C1), 
+                                                [repr(int(el)) for el in witness[:2]],
+                                                # The following are part of the trusted setup and wouldn't be shared at verification
+                                                # but rather deployed onchain with the contact as constants
+                                                # Left here just to make it easier for test
                                                 fq_to_point(alpha1), 
                                                 fq2_to_point(beta2),
                                                 [fq_to_point(C_public[0]), fq_to_point(C_public[1])], 
                                                 fq2_to_point(gamma_2),
-                                                fq_to_point(C1), 
-                                                fq2_to_point(delta_2), 
-                                                [repr(int(el)) for el in witness[:2]])
+                                                fq2_to_point(delta_2))
 
 def main():
     A1, B2, C1, alpha1, beta2, gamma2, delta2, X1, _, _ = easy_as_abc_dg_rs()
