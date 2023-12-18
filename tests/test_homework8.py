@@ -1,70 +1,53 @@
-from py_ecc.bn128 import G1, G2, curve_order, multiply, add, eq, neg, pairing, final_exponentiate
+from py_ecc.bn128 import G1, G2, curve_order, multiply, add, eq, neg, pairing, final_exponentiate, FQ12
 import numpy as np
 import random
 import galois
 from functools import reduce
+# curve_order = 79
 
 def r1cs_to_qap(p, x, y, GF):
-    # out = x^4 -5y^2x^2
-    # v1 = x * x
-    # v2 = v1 * v1         # x^4
-    # v3 = -5y * y
-    # -v2 + out = v3*v1
-    # 1, out, x, y, v1, v2, v3
+    # out = 3x^2y + 5xy - x - 2y + 3
+    # v1 = x * y
+    # out = 3xv1 + 5v1 - x - 2y + 3
+    # out - 5v1 + x + 2y -3 = 3xv1
+
+    # 1, out, x, y, v1
     L = np.array([
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 0, -5, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0],
+        [0, 0, 3, 0, 0],
     ])
 
     R = np.array([
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
     ])
 
     O = np.array([
-        [0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 1],
-        [0, 1, 0, 0, 0, -1, 0],
+        [0, 0, 0, 0, 1],
+        [-3, 1, 1, 2, -5],
     ])
 
-    # x = 4
-    # y = -2
-    v1 = x * x
-    v2 = v1 * v1         # x^4
-    v3 = -5*y * y
-    out = v3*v1 + v2    # -5y^2 * x^2
+    v1 = x * y
+    out = 3*x*v1 + 5*v1 - x - 2*y +3 
 
-    witness = np.array([1, out, x, y, v1, v2, v3])
-
+    witness = np.array([1, out, x, y, v1])
     assert all(np.equal(np.matmul(L, witness) * np.matmul(R, witness), np.matmul(O, witness))), "not equal"
 
     L_galois = GF(np.mod(L, p))
     R_galois = GF(np.mod(R, p))
     O_galois = GF(np.mod(O, p))
     
-    # Correct witness
-    # NOTE, the mod here might be wrong
-    x = GF(x)
-    y = GF(y % p) # we are using 79 as the field size, so 79 - 2 is -2
-    v1 = x * x
-    v2 = v1 * v1         # x^4
-    v3 = GF(-5 % p)*y * y
-    out = v3*v1 + v2    # -5y^2 * x^2
+    v1 = GF(x * y)
+    out = GF(3)*GF(x)*v1 + GF(5)*v1 + GF(-x%p) + GF(-2*y%p) + GF(3) 
 
-    witness = GF(np.array([1, out, x, y, v1, v2, v3]))
+    witness = GF(np.array([1, out, x, y, v1]))
 
     assert all(np.equal(np.matmul(L_galois, witness) * np.matmul(R_galois, witness), np.matmul(O_galois, witness))), "not equal"
-
+    
     def interpolate_column(col):
-        xs = GF(np.array([1,2,3,4]))
+        xs = GF(np.array([1,2]))
         return galois.lagrange_poly(xs, col)
 
-    # axis 0 is the columns. apply_along_axis is the same as doing a for loop over the columns and collecting the results in an array
     U_polys = np.apply_along_axis(interpolate_column, 0, L_galois)
     V_polys = np.apply_along_axis(interpolate_column, 0, R_galois)
     W_polys = np.apply_along_axis(interpolate_column, 0, O_galois)
@@ -73,19 +56,19 @@ def r1cs_to_qap(p, x, y, GF):
         mul_ = lambda x, y: x * y
         sum_ = lambda x, y: x + y
         return reduce(sum_, map(mul_, polys, witness))
-
+    
     Ua = inner_product_polynomials_with_witness(U_polys, witness)
     Va = inner_product_polynomials_with_witness(V_polys, witness)
     Wa = inner_product_polynomials_with_witness(W_polys, witness)
-
-    # t = (x - 1)(x - 2)(x - 3)(x - 4)
-    t = galois.Poly([1, p - 1], field = GF) * galois.Poly([1, p - 2], field = GF) * galois.Poly([1, p - 3], field = GF) * galois.Poly([1, p - 4], field = GF)
+    # t = (x - 1)(x - 2)
+    t = galois.Poly([1, p - 1], field = GF) * \
+        galois.Poly([1, p - 2], field = GF)
     
     h = (Ua * Va - Wa) // t
 
     assert Ua * Va == Wa + h * t, "division has a remainder"
 
-    return (Ua, Va, Wa, h, t)
+    return (Ua, Va, Wa, h, t, witness, U_polys, V_polys, W_polys)
 
 def fq_to_point(fq):
     return [repr(fq[0]), repr(fq[1])]
@@ -93,119 +76,138 @@ def fq_to_point(fq):
 def fq2_to_point(fq):
     return [[repr(fq[0].coeffs[0]), repr(fq[0].coeffs[1])], [repr(fq[1].coeffs[0]), repr(fq[1].coeffs[1])]]
 
-def trusted_setup(t, tau, Ua, alpha, beta, delta):
-    # Calculate powers of tau for A and B and the random shift for A and B
+def kept_secret(GF):
+    tau = GF(3)
+    alpha = GF(6)
+    beta = GF(9)
+    gamma = GF(12)
+    delta = GF(15)
+
+    return tau, alpha, beta, gamma, delta
+
+def trusted_setup(GF, t, Ua, Va, Wa, U, V, W, witness):
+    
+    tau, alpha, beta, gamma, delta = kept_secret(GF)
+
+    # Calculate powers of tau
     powers_of_tau_for_A = [multiply(G1,int(tau**i)) for i in range(Ua.degree + 1)]
     powers_of_tau_for_B = [multiply(G2,int(tau**i)) for i in range(Ua.degree + 1)]
     powers_of_tau_for_h_t = [multiply(G1, int(tau**i * t(tau) * pow(int(delta), -1, curve_order))) for i in range(t.degree)]
     alpha1 = multiply(G1, int(alpha))
+    beta1 = multiply(G1, int(beta))
     beta2 = multiply(G2, int(beta))
-    
-    return powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta2
+    delta1 = multiply(G1, int(delta))
+    delta2 = multiply(G2, int(delta))
+    gamma2 = multiply(G2, int(gamma))
 
-def easy_as_abc_dg_rs():
-    GF = galois.GF(curve_order)
-    # Randomise tau, alpha, beta, gamma, and delta
-    tau = GF(random.randint(1, curve_order - 1))
-    alpha = GF(random.randint(1, curve_order - 1))
-    beta = GF(random.randint(1, curve_order - 1))
-    gamma = GF(random.randint(1, curve_order - 1))
-    delta = GF(random.randint(1, curve_order - 1))
+    C_public = [multiply(
+        G1, 
+        int((beta * u(tau) + alpha * v(tau) + w(tau)) * pow(int(gamma), -1, curve_order)))
+        for u, v, w in zip(U[:2], V[:2], W[:2])]
     
-    # Our inputs
-    x = random.randint(1,1000)
-    y = random.randint(1,1000)
+    C_private = [multiply(
+        G1, 
+        int((beta * u(tau) + alpha * v(tau) + w(tau)) * pow(int(delta), -1, curve_order)))
+        for u, v, w in zip(U[2:], V[2:], W[2:])]
+    
+    return powers_of_tau_for_A, \
+            powers_of_tau_for_B, \
+            powers_of_tau_for_h_t, \
+            alpha1, beta1, beta2, delta1, delta2, C_public, C_private, gamma2
+
+def easy_as_abc_dg_rs(x, y):
+    GF = galois.GF(curve_order)
     
     # Generate QAP
-    Ua, Va, Wa, h, t = r1cs_to_qap(curve_order, x, y, GF)
+    Ua, Va, Wa, h, t, witness, U, V, W = r1cs_to_qap(curve_order, x, y, GF)
     
-    powers_of_tau_for_A, powers_of_tau_for_B, powers_of_tau_for_h_t, alpha1, beta2 = \
-        trusted_setup(t, tau, Ua, alpha, beta, delta)
+    powers_of_tau_for_A, \
+        powers_of_tau_for_B, \
+            powers_of_tau_for_h_t, \
+                alpha1, beta1, beta2, delta1, delta2, C_public, C_private, gamma2 = \
+        trusted_setup(GF, t, Ua, Va, Wa, U, V, W, witness)
     
     # Protect ZK
     r = GF(random.randint(1, curve_order - 1))
     s = GF(random.randint(1, curve_order - 1))
 
     # Calculate A1, B1 and B2
-    A1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Ua.coeffs[::-1])), None)
+    A1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Ua.coeffs[::-1])))
     A1 = add(
             add(
                 alpha1, 
                 A1
             ), 
             multiply(
-                G1, 
-                int(r) * int(delta)
+                delta1, 
+                int(r)
             )
         )
-    B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])), None)
+    B2 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_B, Va.coeffs[::-1])))
     B2 = add(
             add(
                 beta2, 
                 B2
             ), 
             multiply(
-                G2, 
-                int(s) * int(delta)
+                delta2, 
+                int(s)
             )
         )
     
-    B1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Va.coeffs[::-1])), None)
+    B1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_A, Va.coeffs[::-1])))
     B1 = add(
             add(
-                multiply(G1, int(beta)), 
+                beta1, 
                 B1
             ), 
             multiply(
-                G1, 
-                int(s) * int(delta)
+                delta1, 
+                int(s)
             )
         )
-
-    def split_public_private(p):
-        coef = [int(c) for c in p.coefficients()]
-        p1 = coef[-2:]
-        p2 = coef[:-2] + [0] * 2
-
-        return galois.Poly(p1, field=GF), galois.Poly(p2, field=GF)
-    
-    Ua1, Ua2 = split_public_private(Ua)
-    Va1, Va2 = split_public_private(Va)
-    Wa1, Wa2 = split_public_private(Wa)
-    
-    C_public = reduce(add,
-                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(gamma), -1, curve_order))
-                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua1.coeffs[::-1], Va1.coeffs[::-1], Wa1.coeffs[::-1])), None)
-    
-    C_private = reduce(add,
-                  (multiply(point, (int(beta)*int(ui) + int(alpha)*int(vi) + int(wi)) * pow(int(delta), -1, curve_order))
-                    for point, ui, vi, wi in zip(powers_of_tau_for_A, Ua2.coeffs[::-1], Va2.coeffs[::-1], Wa2.coeffs[::-1])), None)
-    
-    HT1 = reduce(add,
-                 (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])), None)
+     
+    HT1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(powers_of_tau_for_h_t, h.coeffs[::-1])))
     
     sA1 = multiply(A1, int(s))
     rB1 = multiply(B1, int(r))
-    rs_delta_1 = multiply(multiply(G1, int(delta)), int(r)*int(s))
-
+    rs_delta_1 = multiply(delta1, int(r*s))
+    X1 = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(C_public, witness[:2])))
+    C_private = reduce(add, (multiply(point, int(coeff)) for point, coeff in zip(C_private, witness[2:])))
     C1 = add(C_private, HT1)
     C1 = add(C1, sA1)
     C1 = add(C1, rB1)
     C1 = add(C1, neg(rs_delta_1))
 
-    return A1, B2, C1, alpha1, beta2, multiply(G2, int(gamma)), multiply(G2, int(delta)), C_public
+    return A1, B2, C1, alpha1, beta2, gamma2, delta2, X1, C_public, witness
     
 def test_week_8_abc_dg_rs(homework8_contract):
-    
-    A1, B2, C1, alpha1, beta2, gamma_2, delta_2, C_public = easy_as_abc_dg_rs()
+    A1, B2, C1, alpha1, beta2, gamma_2, delta_2, X1, C_public, witness = easy_as_abc_dg_rs(3, 4)
 
     assert final_exponentiate(pairing(B2, A1)) == \
         final_exponentiate(
             pairing(beta2, alpha1) *
-            pairing(gamma_2, C_public) *
-            pairing(delta_2, C1)), "sorry nope"
+            pairing(gamma_2, X1) *
+            pairing(delta_2, C1)), "sorry, nope"
+    
+    assert homework8_contract.verify_witness(   fq_to_point(A1), 
+                                                fq2_to_point(B2), 
+                                                fq_to_point(alpha1), 
+                                                fq2_to_point(beta2),
+                                                [fq_to_point(C_public[0]), fq_to_point(C_public[1])], 
+                                                fq2_to_point(gamma_2),
+                                                fq_to_point(C1), 
+                                                fq2_to_point(delta_2), 
+                                                [repr(int(el)) for el in witness[:2]])
 
-    assert homework8_contract.verify_witness(fq_to_point(A1), fq2_to_point(B2), 
-                                            fq_to_point(alpha1), fq2_to_point(beta2),
-                                            fq_to_point(C_public), fq2_to_point(gamma_2),
-                                            fq_to_point(C1), fq2_to_point(delta_2))
+def main():
+    A1, B2, C1, alpha1, beta2, gamma2, delta2, X1, _, _ = easy_as_abc_dg_rs()
+    
+    assert final_exponentiate(pairing(B2, A1)) == \
+        final_exponentiate(
+            pairing(beta2, alpha1) *
+            pairing(gamma2, X1) *
+            pairing(delta2, C1)), "sorry, nope"
+    
+if __name__ == "__main__":
+    main()
