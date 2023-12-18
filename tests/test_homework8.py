@@ -85,7 +85,7 @@ def kept_secret(GF):
 
     return tau, alpha, beta, gamma, delta
 
-def trusted_setup(GF, t, Ua, Va, Wa, U, V, W, witness):
+def trusted_setup(GF, t, Ua, U, V, W):
     
     tau, alpha, beta, gamma, delta = kept_secret(GF)
 
@@ -119,13 +119,13 @@ def easy_as_abc_dg_rs(x, y):
     GF = galois.GF(curve_order)
     
     # Generate QAP
-    Ua, Va, Wa, h, t, witness, U, V, W = r1cs_to_qap(curve_order, x, y, GF)
+    Ua, Va, _, h, t, witness, U, V, W = r1cs_to_qap(curve_order, x, y, GF)
     
     powers_of_tau_for_A, \
         powers_of_tau_for_B, \
             powers_of_tau_for_h_t, \
                 alpha1, beta1, beta2, delta1, delta2, C_public, C_private, gamma2 = \
-        trusted_setup(GF, t, Ua, Va, Wa, U, V, W, witness)
+        trusted_setup(GF, t, Ua, U, V, W)
     
     # Protect ZK
     r = GF(random.randint(1, curve_order - 1))
